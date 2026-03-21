@@ -1,0 +1,7 @@
+id,name,price,category
+1,Laptop,999.99,Electronics
+2,Phone,499.99,Electronics
+3,,150.00,Clothing
+4,Shoes,75.50,Clothing
+5,Watch,-20.00,Accessories
+6,Bag,45.00,Accessories
