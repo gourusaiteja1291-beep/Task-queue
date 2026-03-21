@@ -23,7 +23,6 @@ public class TaskWorker {
     @Scheduled(fixedDelay = 2000)
     public void processTasks() {
         List<Task> pendingTasks = taskRepository.findByStatus("PENDING");
-
         for (Task task : pendingTasks) {
             processTask(task);
         }
@@ -38,9 +37,10 @@ public class TaskWorker {
 
         try {
             String result = switch (task.getTaskType()) {
-                case "email_send" -> handleEmailSend(task.getPayload());
-                case "csv_process" -> handleCsvProcess(task.getPayload());
-                case "report_generation" -> handleReportGeneration(task.getPayload());
+                case "email_send"       -> handleEmailSend(task.getPayload());
+                case "csv_process"      -> handleCsvProcess(task.getPayload());
+                case "report_generation"-> handleReportGeneration(task.getPayload());
+                case "data_import"      -> handleDataImport(task.getPayload());
                 default -> throw new Exception("Unknown task type: " + task.getTaskType());
             };
 
@@ -84,14 +84,9 @@ public class TaskWorker {
         boolean isHeader = true;
 
         while ((line = reader.readLine()) != null) {
-            if (isHeader) {
-                isHeader = false;
-                continue;
-            }
-
+            if (isHeader) { isHeader = false; continue; }
             rowsRead++;
             String[] columns = line.split(",");
-
             try {
                 String name = columns[1].trim();
                 double price = Double.parseDouble(columns[2].trim());
@@ -99,13 +94,11 @@ public class TaskWorker {
 
                 if (name.isEmpty()) {
                     log.warn("Row {} skipped — name is empty", rowsRead);
-                    rowsSkipped++;
-                    continue;
+                    rowsSkipped++; continue;
                 }
                 if (price < 0) {
                     log.warn("Row {} skipped — price is negative: {}", rowsRead, price);
-                    rowsSkipped++;
-                    continue;
+                    rowsSkipped++; continue;
                 }
 
                 Product product = new Product();
@@ -121,7 +114,6 @@ public class TaskWorker {
                 rowsSkipped++;
             }
         }
-
         reader.close();
 
         return String.format(
@@ -134,5 +126,55 @@ public class TaskWorker {
         log.info("Generating report with payload: {}", payload);
         Thread.sleep(4000);
         return "{\"status\":\"generated\",\"file_path\":\"/outputs/report.pdf\"}";
+    }
+
+    private String handleDataImport(String payload) throws Exception {
+        log.info("Starting bulk data import with payload: {}", payload);
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(payload);
+        com.fasterxml.jackson.databind.JsonNode items = root.get("items");
+
+        if (items == null || !items.isArray()) {
+            throw new Exception("Payload must contain an 'items' array");
+        }
+
+        int imported = 0;
+        int skipped = 0;
+
+        for (com.fasterxml.jackson.databind.JsonNode item : items) {
+            try {
+                String name = item.has("name") ? item.get("name").asText() : "";
+                double price = item.has("price") ? item.get("price").asDouble() : -1;
+                String category = item.has("category") ? item.get("category").asText() : "Unknown";
+
+                if (name.isEmpty()) {
+                    log.warn("Skipping item — name is empty");
+                    skipped++; continue;
+                }
+                if (price < 0) {
+                    log.warn("Skipping item — invalid price: {}", price);
+                    skipped++; continue;
+                }
+
+                Product product = new Product();
+                product.setName(name);
+                product.setPrice(price);
+                product.setCategory(category);
+                productRepository.save(product);
+                imported++;
+                log.info("Imported: {} - {} - {}", name, price, category);
+
+            } catch (Exception e) {
+                log.warn("Skipping item due to error: {}", e.getMessage());
+                skipped++;
+            }
+        }
+
+        return String.format(
+            "{\"status\":\"imported\",\"total_items\":%d,\"imported\":%d,\"skipped\":%d}",
+            items.size(), imported, skipped
+        );
     }
 }
