@@ -18,18 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class TaskController {
 
     @Autowired
-    private TaskRepository taskRepository;
+    private TaskService taskService;
 
     @PostMapping
     public ResponseEntity<Task> submitTask(@RequestBody Task task) {
-        task.setStatus("PENDING");
-        Task saved = taskRepository.save(task);
+        Task saved = taskService.submitTask(task);
         return ResponseEntity.accepted().body(saved);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Task> getTask(@PathVariable UUID id) {
-        return taskRepository.findById(id)
+        return taskService.getTaskById(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
@@ -39,9 +38,9 @@ public class TaskController {
             @RequestParam(required = false) String status) {
         List<Task> tasks;
         if (status != null) {
-            tasks = taskRepository.findByStatus(status);
+            tasks = taskService.getTasksByStatus(status);
         } else {
-            tasks = taskRepository.findAll();
+            tasks = taskService.getAllTasks();
         }
         return ResponseEntity.ok(tasks);
     }

@@ -28,17 +28,15 @@ Instead of making the client wait for a long-running job to finish, this system:
 
 ## Project Structure
 
-```
 src/main/java/com/taskqueue/task_queue/
-├── TaskQueueApplication.java   → Main entry point
+├── TaskQueueApplication.java   → Main entry point + @EnableScheduling
 ├── Task.java                   → Task entity (maps tasks table)
-├── TaskRepository.java         → DB queries for tasks
-├── TaskController.java         → REST API endpoints
-├── TaskWorker.java             → Background worker + all handlers
 ├── Product.java                → Product entity (maps products table)
-└── ProductRepository.java      → DB queries for products
-```
-
+├── TaskRepository.java         → DB queries for tasks table
+├── ProductRepository.java      → DB queries for products table
+├── TaskService.java            → Business logic layer (submit, get, filter tasks)
+├── TaskController.java         → REST API endpoints (HTTP layer only)
+└── TaskWorker.java             → Background worker + all 4 task handlers
 ---
 
 ## Prerequisites
